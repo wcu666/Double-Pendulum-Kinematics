@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Double Pendulum Kinematics Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f4f6;
+            --panel-bg: #ffffff;
+            --text-main: #222222;
+            --text-muted: #555555;
+            --border-color: #cccccc;
+            --accent-color: #003366; 
+            --btn-hover: #002244;
+            --font-serif: "Times New Roman", Times, serif;
+            --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 側邊欄 - 參數控制 */
+        .sidebar {
+            width: 340px;
+            background-color: var(--panel-bg);
+            padding: 20px 25px;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.03);
+            font-size: 13px;
+        }
+
+        .main {
+            flex-grow: 1;
+            padding: 20px 30px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        /* 標題與學術名詞使用 Times New Roman */
+        h1, h2, h3 {
+            font-family: var(--font-serif);
+            font-weight: normal;
+            color: var(--accent-color);
+            margin-top: 0;
+        }
+        h1 { font-size: 24px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
+
+        .section { margin-bottom: 25px; }
+        
+        .control-group { margin-bottom: 12px; }
+        .control-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        
+        /* 物理公式與變數使用 Times New Roman 斜體 */
+        .math { font-family: var(--font-serif); font-style: italic; font-size: 15px;}
+        
+        .control-group input[type="range"] { width: 100%; cursor: pointer; }
+        .control-group span { float: right; font-weight: normal; color: var(--accent-color); font-family: var(--font-serif); }
+        
+        select, button {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            background-color: #fafafa;
+        }
+        
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--text-main);
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #e6e6e6; }
+        
+        button.primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: 1px solid var(--accent-color);
+        }
+        button.primary:hover { background-color: var(--btn-hover); }
+        
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .toolbar button { margin-bottom: 0; width: auto; padding: 8px 20px; }
+        
+        .content {
+            display: flex;
+            gap: 20px;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        
+        .panel {
+            flex: 1;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+        }
+        
+        /* 圖表標題使用學術風格字體 */
+        .panel-title {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-family: var(--font-serif);
+            font-weight: bold;
+            font-size: 14px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.9);
+            padding: 2px 5px;
+            border: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        canvas { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
+        
+       
+        .footer {
+            position: fixed;
+            bottom: 0; 
+            width: 100%;
+            background: var(--panel-bg); 
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 10px; 
+            border-top: 1px solid var(--border-color);
+            font-family: var(--font-serif);
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        
+        .footer img {
+            height: 28px;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>System Parameters</h2>
+    
+    <div class="section">
+        <div class="control-group">
+            <label>Analytical View</label>
+            <select id="graphType" onchange="initChart()">
+                <option value="energy">Energy Analysis (T, V, E)</option>
+                <option value="theta">Angular Displacement (&theta; vs t)</option>
+                <option value="omega">Angular Velocity (&omega; vs t)</option>
+                <option value="phase1">Phase Space 1 (&omega;₁ vs &theta;₁)</option>
+                <option value="phase2">Phase Space 2 (&omega;₂ vs &theta;₂)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Time Window (Steps) <span id="winVal">150</span></label>
+            <input type="range" id="winSize" min="50" max="500" value="150">
+        </div>
+    </div>
+
+    <h2>Physical Properties</h2>
+    <div class="section">
+        <div class="control-group">
+            <label>Mass 1 <span class="math">m<sub>1</sub></span> <span id="m1Val">1.0 kg</span></label>
+            <input type="range" id="m1" min="1" max="20" step="0.1" value="1.0">
+        </div>
+        <div class="control-group">
+            <label>Mass 2 <span class="math">m<sub>2</sub></span> <span id="m2Val">1.0 kg</span></label>
+            <input type="range" id="m2" min="1" max="20" step="0.1" value="1.0">
+        </div>
+        <div class="control-group">
+            <label>Length 1 <span class="math">L<sub>1</sub></span> <span id="l1Val">1.1 m</span></label>
+            <input type="range" id="l1" min="1" max="2" step="0.01" value="1.1">
+        </div>
+        <div class="control-group">
+            <label>Length 2 <span class="math">L<sub>2</sub></span> <span id="l2Val">1.1 m</span></label>
+            <input type="range" id="l2" min="1" max="2" step="0.01" value="1.1">
+        </div>
+    </div>
+
+    <h2>Initial Conditions</h2>
+    <div class="section">
+        <div class="control-group">
+            <label>Initial Angle <span class="math">&theta;<sub>1</sub></span> <span id="th1Val">77&deg;</span></label>
+            <input type="range" id="th1Init" min="0" max="360" value="77">
+        </div>
+        <div class="control-group">
+            <label>Initial Angle <span class="math">&theta;<sub>2</sub></span> <span id="th2Val">135&deg;</span></label>
+            <input type="range" id="th2Init" min="0" max="360" value="135">
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button class="primary" onclick="resetSim()">Apply Parameters</button>
+        <button onclick="clearTrace()">Clear Trajectory</button>
+    </div>
+</div>
+
+<div class="main">
+    <h1>Double Pendulum Kinematics</h1>
+    <div class="toolbar">
+        <button id="btnPause" onclick="togglePause()">Pause Simulation</button>
+        <button onclick="resetSim()">Initialize System</button>
+        <button onclick="toggleGraph()">Toggle Data Plot</button>
+    </div>
+    
+    <div class="content">
+        <div class="panel">
+            <div class="panel-title">Figure 1. Real-time Spatial Trajectory</div>
+            <canvas id="simCanvas" width="800" height="800"></canvas>
+        </div>
+        <div class="panel" id="chartBox">
+            <div class="panel-title">Figure 2. Time Series Analysis</div>
+            <canvas id="dataChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+
+    <img src="ccu-logo.png" alt="CCU Physics Logo">
+    <span>&copy; 2026 CHANG-YU, WU | National Chung Cheng University, Department of Physics | General Physics (I) Final Project</span>
+</div>
+
+<script>
+    // --- 物理參數 ---
+    const g = 9.8; 
+    const BASE_LEN = 0.0; 
+    let m1 = 1.0, m2 = 1.0;
+    let L1 = 1.1, L2 = 1.1;
+    let y_state = [77 * Math.PI / 180, 0, 135 * Math.PI / 180, 0];
+    
+    // --- 控制變數 ---
+    let running = true;
+    let showGraph = true;
+    let trace = [];
+    let historyData = { th1: [], th2: [], w1: [], w2: [], T: [], V: [], E: [] };
+    
+    const dt = 0.004;          // 每次積分的時間步長 (秒)
+    const steps_per_frame = 4; // 每次畫面更新執行 4 次積分 (0.016秒/幀)
+    const max_trail = 1500;     // 畫面上實體擺錘保留的軌跡長度
+    const MAX_HISTORY = 20000; // 相圖所需的極限歷史長度 (~5.5 分鐘)，避免記憶體溢位
+    
+    // --- 畫布設定 ---
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const VIEW_LIMIT = 5.0; 
+    const scale = W / (2 * VIEW_LIMIT);
+
+    // --- 圖表設定 (Chart.js) ---
+    Chart.defaults.font.family = '"Times New Roman", Times, serif'; // 圖表內字體採用 Times New Roman
+    Chart.defaults.color = '#333';
+    
+    let dataChart = null;
+    
+    function initChart() {
+        const type = document.getElementById('graphType').value;
+        const chartCtx = document.getElementById('dataChart').getContext('2d');
+        
+        if (dataChart) {
+            dataChart.destroy();
+        }
+
+        const isPhase = (type === 'phase1' || type === 'phase2');
+
+        // 基本共用設定
+        let config = {
+            type: isPhase ? 'scatter' : 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                elements: { 
+                    point: { radius: 0 },
+                    line: { tension: 0.1, borderWidth: 1.5 } 
+                },
+                plugins: {
+                    legend: { position: 'top', align: 'end', labels: { boxWidth: 12 } }
+                },
+                scales: {
+                    y: {
+                        display: true,
+                        grid: { color: '#eaeaea', borderDash: [4, 4] }
+                    },
+                    x: {
+                        type: isPhase ? 'linear' : 'category',
+                        display: true, 
+                        grid: { color: '#eaeaea', borderDash: [4, 4] },
+                        ticks: { maxTicksLimit: isPhase ? 10 : 5 }
+                    }
+                }
+            }
+        };
+        
+        dataChart = new Chart(chartCtx, config);
+    }
+        
+    
+    initChart();
+
+    // --- UI 綁定 ---
+    const bindSlider = (id, valId, unit, updateFunc) => {
+        const el = document.getElementById(id);
+        const valEl = document.getElementById(valId);
+        el.addEventListener('input', (e) => {
+            valEl.innerHTML = e.target.value + (unit ? ' ' + unit : '');
+            updateFunc(parseFloat(e.target.value));
+        });
+    };
+
+    bindSlider('m1', 'm1Val', 'kg', v => m1 = v);
+    bindSlider('m2', 'm2Val', 'kg', v => m2 = v);
+    bindSlider('l1', 'l1Val', 'm', v => L1 = BASE_LEN + v);
+    bindSlider('l2', 'l2Val', 'm', v => L2 = BASE_LEN + v);
+    bindSlider('th1Init', 'th1Val', '&deg;', v => {}); 
+    bindSlider('th2Init', 'th2Val', '&deg;', v => {});
+    bindSlider('winSize', 'winVal', '', v => {});
+
+    function togglePause() {
+        running = !running;
+        document.getElementById('btnPause').innerText = running ? "Pause Simulation" : "Resume Simulation";
+    }
+
+    function toggleGraph() {
+        showGraph = !showGraph;
+        document.getElementById('chartBox').style.display = showGraph ? 'flex' : 'none';
+    }
+
+    function clearTrace() { trace = []; }
+
+    // 當改變起始條件時，重置系統與相圖
+    function resetSim() {
+        let th1Init = parseFloat(document.getElementById('th1Init').value) * Math.PI / 180;
+        let th2Init = parseFloat(document.getElementById('th2Init').value) * Math.PI / 180;
+        y_state = [th1Init, 0, th2Init, 0];
+        trace = [];
+        // 清空歷史紀錄，相圖將從零開始重新繪製
+        historyData = { th1: [], th2: [], w1: [], w2: [], T: [], V: [], E: [] };
+        if (dataChart) dataChart.update();
+    }
+
+    // --- 物理引擎 (RK4) ---
+    function deriv(y) {
+        let [theta1, z1, theta2, z2] = y;
+        let c = Math.cos(theta1 - theta2);
+        let s = Math.sin(theta1 - theta2);
+        
+        let z1dot = (m2 * g * Math.sin(theta2) * c - m2 * s * (L1 * z1 * z1 * c + L2 * z2 * z2) - (m1 + m2) * g * Math.sin(theta1)) / (L1 * (m1 + m2 * s * s));
+        let z2dot = ((m1 + m2) * (L1 * z1 * z1 * s - g * Math.sin(theta2) + g * Math.sin(theta1) * c) + m2 * L2 * z2 * z2 * s * c) / (L2 * (m1 + m2 * s * s));
+        
+        return [z1, z1dot, z2, z2dot];
+    }
+
+    function rk4_step(y, dt) {
+        let k1 = deriv(y);
+        let y2 = y.map((val, i) => val + 0.5 * dt * k1[i]);
+        let k2 = deriv(y2);
+        let y3 = y.map((val, i) => val + 0.5 * dt * k2[i]);
+        let k3 = deriv(y3);
+        let y4 = y.map((val, i) => val + dt * k3[i]);
+        let k4 = deriv(y4);
+        return y.map((val, i) => val + (dt / 6.0) * (k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+    }
+
+    function calc_E(y) {
+        let [th1, th1d, th2, th2d] = y;
+        let V = -(m1+m2)*L1*g*Math.cos(th1) - m2*L2*g*Math.cos(th2);
+        let T = 0.5*m1*Math.pow(L1*th1d, 2) + 0.5*m2*(Math.pow(L1*th1d, 2) + Math.pow(L2*th2d, 2) + 2*L1*L2*th1d*th2d*Math.cos(th1-th2));
+        return { T: T, V: V, E: T + V };
+    }
+
+    // --- 繪圖函數 ---
+    function drawGrid() {
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]); 
+        
+        for(let i = 0; i <= W; i += scale) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke();
+        }
+        
+        ctx.strokeStyle = '#999';
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+    }
+
+    function drawSimulation() {
+        ctx.clearRect(0, 0, W, H);
+        drawGrid();
+        
+        let [th1, w1, th2, w2] = y_state;
+        let x1 = L1 * Math.sin(th1);
+        let y1 = -L1 * Math.cos(th1);
+        let x2 = x1 + L2 * Math.sin(th2);
+        let y2 = y1 - L2 * Math.cos(th2);
+
+        const toX = x => cx + x * scale;
+        const toY = y => cy - y * scale;
+
+        if (trace.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(toX(trace[0][0]), toY(trace[0][1]));
+            for (let i = 1; i < trace.length; i++) {
+                ctx.lineTo(toX(trace[i][0]), toY(trace[i][1]));
+            }
+            ctx.strokeStyle = 'rgba(217, 95, 2, 0.7)'; 
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(toX(x1), toY(y1));
+        ctx.lineTo(toX(x2), toY(y2));
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        const drawCircle = (x, y, r, color) => {
+            ctx.beginPath();
+            ctx.arc(toX(x), toY(y), Math.max(r * scale * 0.5, 6), 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        };
+
+        drawCircle(0, 0, 0.1, '#666666'); 
+        drawCircle(x1, y1, m1 * 0.1, '#1f78b4'); 
+        drawCircle(x2, y2, m2 * 0.1, '#e31a1c'); 
+        
+        return [x2, y2];
+    }
+
+   
+    // --- 更新圖表 ---
+    let frameCount = 0;
+    function updateChart() {
+        if (!showGraph || !dataChart) return;
+        
+        let winSize = parseInt(document.getElementById('winSize').value);
+        let type = document.getElementById('graphType').value;
+        let len = historyData.E.length;
+        if (len === 0) return;
+
+        // FIXED: Check for both phase1 and phase2 properly
+        const isPhase = (type === 'phase1' || type === 'phase2');
+        
+        // If it's a phase diagram, start from index 0 (keep all history). 
+        // Otherwise, cut it to the window size.
+        let startIdx = isPhase ? 0 : Math.max(0, len - winSize);
+        
+        if (!isPhase) {
+            let labels = Array.from({length: len - startIdx}, (_, i) => i + startIdx);
+            dataChart.data.labels = labels;
+        }
+
+        if (type === 'energy') {
+            dataChart.data.datasets = [
+                { label: 'Kinetic (T)', data: historyData.T.slice(startIdx), borderColor: '#e31a1c', backgroundColor: 'transparent' },
+                { label: 'Potential (V)', data: historyData.V.slice(startIdx), borderColor: '#1f78b4', backgroundColor: 'transparent' },
+                { label: 'Total (E)', data: historyData.E.slice(startIdx), borderColor: '#33a02c', backgroundColor: 'transparent' }
+            ];
+            dataChart.options.scales.y.title = { display: true, text: 'Energy (Joules)' };
+            dataChart.options.scales.x.title = { display: true, text: 'Time Steps' };
+        
+        } else if (type === 'theta') {
+            let th1_deg = historyData.th1.slice(startIdx).map(v => (v * 180 / Math.PI) % 360);
+            let th2_deg = historyData.th2.slice(startIdx).map(v => (v * 180 / Math.PI) % 360);
+            th1_deg = th1_deg.map(v => v < 0 ? v + 360 : v);
+            th2_deg = th2_deg.map(v => v < 0 ? v + 360 : v);
+
+            dataChart.data.datasets = [
+                { label: 'θ₁ (deg)', data: th1_deg, borderColor: '#1f78b4', backgroundColor: 'transparent' },
+                { label: 'θ₂ (deg)', data: th2_deg, borderColor: '#e31a1c', backgroundColor: 'transparent' }
+            ];
+            dataChart.options.scales.y.title = { display: true, text: 'Angle (Degrees)' };
+            dataChart.options.scales.x.title = { display: true, text: 'Time Steps' };
+        
+        } else if (type === 'omega') {
+            dataChart.data.datasets = [
+                { label: 'ω₁ (rad/s)', data: historyData.w1.slice(startIdx), borderColor: '#1f78b4', backgroundColor: 'transparent' },
+                { label: 'ω₂ (rad/s)', data: historyData.w2.slice(startIdx), borderColor: '#e31a1c', backgroundColor: 'transparent' }
+            ];
+            dataChart.options.scales.y.title = { display: true, text: 'Angular Velocity (rad/s)' };
+            dataChart.options.scales.x.title = { display: true, text: 'Time Steps' };
+        
+        } else if (type === 'phase1') {
+            let slice_th1 = historyData.th1.slice(startIdx);
+            let slice_w1 = historyData.w1.slice(startIdx);
+            let phaseData1 = slice_th1.map((th, i) => ({ x: th * 180 / Math.PI, y: slice_w1[i] }));
+            
+            dataChart.data.datasets = [
+                { label: 'Pendulum 1 (θ₁ vs ω₁)', data: phaseData1, borderColor: '#1f78b4', backgroundColor: '#1f78b4', showLine: true }
+            ];
+            dataChart.options.scales.y.title = { display: true, text: 'Angular Velocity ω₁ (rad/s)' };
+            dataChart.options.scales.x.title = { display: true, text: 'Angle θ₁ (Degrees)' };
+            
+        } else if (type === 'phase2') {
+            let slice_th2 = historyData.th2.slice(startIdx);
+            let slice_w2 = historyData.w2.slice(startIdx);
+            let phaseData2 = slice_th2.map((th, i) => ({ x: th * 180 / Math.PI, y: slice_w2[i] }));
+            
+            dataChart.data.datasets = [
+                { label: 'Pendulum 2 (θ₂ vs ω₂)', data: phaseData2, borderColor: '#e31a1c', backgroundColor: '#e31a1c', showLine: true }
+            ];
+            dataChart.options.scales.y.title = { display: true, text: 'Angular Velocity ω₂ (rad/s)' };
+            dataChart.options.scales.x.title = { display: true, text: 'Angle θ₂ (Degrees)' };
+        }
+        
+        dataChart.update();
+    }
+
+    // --- 主迴圈 ---
+    function loop() {
+        if (running) {
+            for (let i = 0; i < steps_per_frame; i++) {
+                y_state = rk4_step(y_state, dt);
+            }
+
+            let energy = calc_E(y_state);
+            
+            historyData.th1.push(y_state[0]);
+            historyData.w1.push(y_state[1]);
+            historyData.th2.push(y_state[2]);
+            historyData.w2.push(y_state[3]);
+            historyData.T.push(energy.T);
+            historyData.V.push(energy.V);
+            historyData.E.push(energy.E);
+
+            // 放寬歷史資料限制至 20000 筆，允許完整畫出精緻的相圖，並避免瀏覽器崩潰
+            if (historyData.E.length > MAX_HISTORY) {
+                for (let k in historyData) historyData[k] = historyData[k].slice(-MAX_HISTORY);
+            }
+
+            let pos = drawSimulation();
+            trace.push(pos);
+            if (trace.length > max_trail) trace.shift();
+
+            frameCount++;
+            if (frameCount % 6 === 0) updateChart();
+        }
+        requestAnimationFrame(loop);
+    }
+
+    // 啟動
+    loop();
+</script>
+
+</body>
+</html>
